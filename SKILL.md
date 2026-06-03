@@ -56,7 +56,7 @@ if IS_TEST:
 
 resp = requests.post(
     f"{auth_domain}/oauth/token",
-    params={"scope": "ALL", "grant_type": "client_credentials"},
+    data={"scope": "ALL", "grant_type": "client_credentials"},
     headers=headers,
     timeout=10,
 )
