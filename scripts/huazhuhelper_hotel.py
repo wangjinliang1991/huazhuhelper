@@ -31,7 +31,10 @@ class HuazhuhelperHotel:
         }
 
         resp = requests.get(f"{self.biz_domain}/hotels", headers=headers, timeout=10)
-        resp.raise_for_status()
+        if not resp.ok:
+            raise Exception(
+                f"酒店列表请求失败 [HTTP {resp.status_code}]: {resp.text}"
+            )
         data = resp.json()
 
         if isinstance(data, list):

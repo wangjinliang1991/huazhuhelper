@@ -12,7 +12,7 @@ description: 查询华住酒店列表。通过华住OpenAPI获取酒店数据，
 向用户询问以下信息（必需）：
 - **clientId**: 华住分配的客户端ID
 - **clientSecret**: 华住分配的客户端密钥
-- **distributorId**: 渠道Code（如 MEITUAN），默认 MEITUAN
+- **distributorId**: 渠道Code（默认 MEITUAN，可选）
 
 ## 工作流程
 
@@ -95,10 +95,10 @@ sys.path.insert(0, "{baseDir}/scripts")
 from huazhuhelper_auth import HuazhuhelperAuth
 from huazhuhelper_hotel import HuazhuhelperHotel
 
+# distributor_id 默认为 MEITUAN，可省略
 auth = HuazhuhelperAuth(
     client_id="用户的clientId",
     client_secret="用户的clientSecret",
-    distributor_id="MEITUAN",
     is_test=True,
 )
 hotel = HuazhuhelperHotel(auth)

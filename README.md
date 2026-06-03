@@ -58,6 +58,7 @@ sys.path.insert(0, "scripts")
 from huazhuhelper_auth import HuazhuhelperAuth
 from huazhuhelper_hotel import HuazhuhelperHotel
 
+# distributor_id 默认为 MEITUAN，可省略
 auth = HuazhuhelperAuth(client_id="你的ID", client_secret="你的Secret")
 hotels = HuazhuhelperHotel(auth).get_hotel_list()
 for h in hotels:

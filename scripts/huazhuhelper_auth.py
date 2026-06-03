@@ -14,7 +14,7 @@ class HuazhuhelperAuth:
         Args:
             client_id: 客户端ID（从华住申请）
             client_secret: 客户端密钥（从华住申请）
-            distributor_id: 渠道Code（如 MEITUAN）
+            distributor_id: 渠道Code（默认 MEITUAN）
             is_test: 是否测试环境
         """
         self.client_id = client_id
@@ -45,7 +45,7 @@ class HuazhuhelperAuth:
 
         resp = requests.post(
             f"{self.auth_domain}/oauth/token",
-            params={"scope": "ALL", "grant_type": "client_credentials"},
+            data={"scope": "ALL", "grant_type": "client_credentials"},
             headers=headers,
             timeout=10,
         )
