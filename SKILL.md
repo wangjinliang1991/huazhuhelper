@@ -86,7 +86,9 @@ if len(hotels) > 20:
 
 ## 使用本项目模块
 
-本 Skill 安装后，脚本位于 `{baseDir}/scripts/` 目录下：
+本 Skill 安装后，脚本位于 `{baseDir}/scripts/` 目录下。
+
+### 方式一：直接使用模块（推荐）
 
 ```python
 import sys
@@ -108,6 +110,151 @@ for h in hotels:
 ```
 
 其中 `{baseDir}` 是 Skill 安装后的根目录，通常为 `~/.openclaw/skills/huazhuhelper`。
+
+### 方式二：直接复制脚本代码
+
+如果不想安装 Skill，可以直接复制以下两个脚本文件的内容到您的项目中：
+
+#### 脚本1: huazhuhelper_auth.py（认证模块）
+
+```python
+"""华住OpenAPI认证模块 - 获取access_token"""
+
+import base64
+import time
+import requests
+
+
+class HuazhuhelperAuth:
+    """华住认证客户端"""
+
+    def __init__(self, client_id: str, client_secret: str,
+                 distributor_id: str = "MEITUAN", is_test: bool = True):
+        """
+        Args:
+            client_id: 客户端ID（从华住申请）
+            client_secret: 客户端密钥（从华住申请）
+            distributor_id: 渠道Code（默认 MEITUAN）
+            is_test: 是否测试环境
+        """
+        self.client_id = client_id
+        self.client_secret = client_secret
+        self.distributor_id = distributor_id
+        self.is_test = is_test
+        self.auth_domain = "https://test-oauth2-api.huazhu.com" if is_test else "https://openapi.huazhu.com"
+        self._token = None
+        self._expires_at = 0
+
+    def _basic_auth(self) -> str:
+        """将 clientId:clientSecret 进行Base64编码"""
+        raw = f"{self.client_id}:{self.client_secret}"
+        encoded = base64.b64encode(raw.encode()).decode()
+        return f"Basic {encoded}"
+
+    def get_token(self) -> str:
+        """获取access_token（自动缓存，到期前120秒刷新）"""
+        if self._token and time.time() < self._expires_at - 120:
+            return self._token
+
+        headers = {
+            "Authorization": self._basic_auth(),
+            "Content-Type": "application/x-www-form-urlencoded",
+        }
+        if self.is_test:
+            headers["X-Lane-Tag"] = "preview"
+
+        resp = requests.post(
+            f"{self.auth_domain}/oauth/token",
+            data={"scope": "ALL", "grant_type": "client_credentials"},
+            headers=headers,
+            timeout=10,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+
+        if "access_token" not in data:
+            raise Exception(f"获取token失败: {data}")
+
+        self._token = data["access_token"]
+        self._expires_at = time.time() + data.get("expires_in", 3600)
+        return self._token
+```
+
+#### 脚本2: huazhuhelper_hotel.py（酒店查询模块）
+
+```python
+"""华住OpenAPI酒店查询模块"""
+
+import time
+import uuid
+import requests
+from huazhuhelper_auth import HuazhuhelperAuth
+
+
+class HuazhuhelperHotel:
+    """华住酒店查询客户端"""
+
+    def __init__(self, auth: HuazhuhelperAuth,
+                 biz_domain: str = "http://test-crs-distributor.huazhu.com"):
+        self.auth = auth
+        self.biz_domain = biz_domain
+
+    def get_hotel_list(self) -> list:
+        """
+        获取酒店列表
+
+        Returns:
+            list[dict]，每个元素包含 hotelId、hotelName 等字段
+        """
+        token = self.auth.get_token()
+
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "distributorId": self.auth.distributor_id,
+            "timestamp": str(int(time.time() * 1000)),
+            "traceId": str(uuid.uuid4()),
+        }
+
+        resp = requests.get(f"{self.biz_domain}/hotels", headers=headers, timeout=10)
+        if not resp.ok:
+            raise Exception(
+                f"酒店列表请求失败 [HTTP {resp.status_code}]: {resp.text}"
+            )
+        data = resp.json()
+
+        if isinstance(data, list):
+            return data
+
+        code = data.get("code")
+        if code and code != 1000:
+            raise Exception(f"API错误 [code={code}]: {data.get('message', '未知错误')}")
+
+        return data.get("content", data.get("data", []))
+```
+
+#### 使用示例
+
+将以上两个脚本保存为 `huazhuhelper_auth.py` 和 `huazhuhelper_hotel.py`，然后：
+
+```python
+from huazhuhelper_auth import HuazhuhelperAuth
+from huazhuhelper_hotel import HuazhuhelperHotel
+
+# 创建认证实例（distributor_id 默认为 MEITUAN）
+auth = HuazhuhelperAuth(
+    client_id="573d8245-5ec0-4172-92aa-5e1a8de1e507",
+    client_secret="您的clientSecret",
+    is_test=True  # 测试环境设为True，生产环境设为False
+)
+
+# 查询酒店列表
+hotel_client = HuazhuhelperHotel(auth)
+hotels = hotel_client.get_hotel_list()
+
+print(f"共查询到 {len(hotels)} 个酒店")
+for h in hotels[:10]:  # 显示前10个
+    print(f"  - {h.get('hotelName')} (ID: {h.get('hotelId')})")
+```
 
 ## API 请求头说明
 
